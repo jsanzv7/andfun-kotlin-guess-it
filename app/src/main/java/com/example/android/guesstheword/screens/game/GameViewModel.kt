@@ -1,5 +1,7 @@
 package com.example.android.guesstheword.screens.game
 
+import android.os.CountDownTimer
+import android.text.format.DateUtils
 import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
@@ -11,6 +13,20 @@ private lateinit var wordList: MutableList<String>
 // TODO (02) Create the GameViewModel class, extending ViewModel
 class GameViewModel : ViewModel() {
 
+    companion object {
+        //These represent different important times in the game, such as game length.
+        // This is when the game is over
+        private const val DONE = 0L
+
+        // This is the number of milliseconds in a second
+        private const val ONE_SECOND = 1000L
+
+        // This is the total time of the game
+        private const val COUNTDOWN_TIME = 10000L
+    }
+
+    private val timer: CountDownTimer
+
     // The current word
     private var _word = MutableLiveData<String>()
     val word: LiveData<String>
@@ -20,6 +36,11 @@ class GameViewModel : ViewModel() {
     private var _score = MutableLiveData<Int>()
     val score: LiveData<Int>
         get() = _score
+
+    // The current time
+    private var _currentTime = MutableLiveData<Long>()
+    val currentTime:LiveData<Long>
+        get() = _currentTime
 
     private val _eventGameFinish = MutableLiveData<Boolean>()
     val eventGameFinish: LiveData<Boolean>
@@ -31,7 +52,20 @@ class GameViewModel : ViewModel() {
         resetList()
         nextWord()
         _score.value = 0
+        // Creates a timer which triggers the end of the game when it finishes
+        timer = object : CountDownTimer(COUNTDOWN_TIME, ONE_SECOND) {
+            override fun onTick(millisUntilFinished: Long) {
+                _currentTime.value = (millisUntilFinished / ONE_SECOND)
+            }
+
+            override fun onFinish() {
+                _currentTime.value = DONE
+                _eventGameFinish.value = true
+            }
+        }
+    timer.start()
     }
+
 
     /**
      * Resets the list of words and randomizes the order
@@ -71,13 +105,14 @@ class GameViewModel : ViewModel() {
         if (wordList.isEmpty()) {
             //gameFinished()
             _eventGameFinish.value = true
-        } else {
-            _word.value = wordList.removeAt(0)
+            resetList()
         }
+        _word.value = wordList.removeAt(0)
+    }
 //    already called in GameFragment lines 68 to 69
 //    updateWordText()
 //    updateScoreText()
-    }
+
 
     /** Methods for buttons presses **/
     fun onSkip() {
@@ -90,7 +125,11 @@ class GameViewModel : ViewModel() {
         nextWord()
     }
 
-    fun onGameFinishComplete(){
+    fun onGameFinishComplete() {
         _eventGameFinish.value = false
+    }
+    override fun onCleared() {
+        super.onCleared()
+        timer.cancel()
     }
 }
